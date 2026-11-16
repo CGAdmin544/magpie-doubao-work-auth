@@ -187,3 +187,20 @@ test('签到字段缺失时窗口仍可用，不出现 undefined', () => {
   assert.equal(signin.credit, undefined)
   assert.equal(signin.streak, undefined)
 })
+
+test('推理档位传数字时归一化成名字，不静默丢弃', () => {
+  // 少数客户端按 3/4/5… 传档位，直接丢掉会让用户以为档位设置没生效
+  const numeric = prepareRequest({ model: 'm', messages: [{ role: 'user', content: 'hi' }], reasoning_effort: 3 })
+  assert.equal(numeric.request.reasoning_effort, 'low')
+
+  const high = prepareRequest({ model: 'm', messages: [{ role: 'user', content: 'hi' }], reasoning_effort: 5 })
+  assert.equal(high.request.reasoning_effort, 'high')
+
+  // 名字照常透传
+  const named = prepareRequest({ model: 'm', messages: [{ role: 'user', content: 'hi' }], reasoning_effort: 'max' })
+  assert.equal(named.request.reasoning_effort, 'max')
+
+  // 认不出的值当作没给，交给模型的默认档位
+  const unknown = prepareRequest({ model: 'm', messages: [{ role: 'user', content: 'hi' }], reasoning_effort: 99 })
+  assert.equal(unknown.request.reasoning_effort, undefined)
+})

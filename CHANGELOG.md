@@ -2,7 +2,9 @@
 
 只记对使用者有影响的改动，内部重构不写。倒序排列。
 
-## 未发布
+版本号：大改动动第二位（`0.2` → `0.3`），日常修复加第三位（`0.3.0` → `0.3.1`）。没有 npm 包也没有发行版，所以这里就是唯一的版本依据。
+
+## 0.3.1（2026-11-16）
 
 - **支持 Codex 的 Responses 协议。** Codex 默认 `wire_api = "responses"`，发的是 `input` 而不是 `messages`，之前会被当成「请求缺少 messages」拒掉，Codex 侧只看到 `server_error` 或 `delegated input protocol violation`。现在请求和响应都做了双向折叠，Codex 不用改配置。
 - **补上 `usage` 字段。** 豆包的事件流不带 token 统计，之前客户端一律显示 0，Codex 会因此误判上下文占用。现在按字符估算补上（中日韩 1 token/字，其余 4 字符/token），只给量级，不用于计费。

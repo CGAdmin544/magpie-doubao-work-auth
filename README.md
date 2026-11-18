@@ -13,6 +13,7 @@
 
 > 完整记录见 [CHANGELOG.md](CHANGELOG.md)，最新的在最上面。
 
+- **工具回复被截断不再作废整轮**（`0.3.3`）。模型中途停下、工具 JSON 没闭合时，先救回写完的调用，救不回来就把正文当普通回复返回，不再整轮报 502。
 - **风控不再反复重试**（`0.3.2`）。被拦后带 `X-Magpie-Refused` 让 magpie 只失败一次，并进入 5 分钟冷却，不再连打 5 次把风控堆高。
 - **支持 Codex 的 Responses 协议**（`029a866`）。之前 Codex 调用会失败，报 `server_error` 或 `delegated input protocol violation`——插件只认 chat completions 的 `messages`，而 Codex 发的是 `input`。同时补上了 `usage` 字段，客户端不再显示 0 token。
 - **倍率改用原生 `rate` 字段**（`4f3c3f1`）。显示成标准徽章，不再拼进模型名。

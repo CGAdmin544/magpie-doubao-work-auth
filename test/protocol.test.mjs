@@ -89,6 +89,49 @@ test('不需要工具时直接返回正文', () => {
   assert.equal(message.tool_calls, undefined)
 })
 
+test('工具回复被截断时不作废整轮：能救回的调用照常交出', () => {
+  // 模型中途停下，外层 JSON 没闭合（issue #4）。前面完整的调用仍然可用
+  const prepared = prepareRequest({
+    model: 'm',
+    messages: [{ role: 'user', content: 'x' }],
+    tools: [
+      { type: 'function', function: { name: 'shell', parameters: { type: 'object' } } },
+      { type: 'function', function: { name: 'submit', parameters: { type: 'object' } } },
+    ],
+    tool_choice: 'auto',
+  })
+  const message = decodeReply('{"content":"ok","tool_calls":[{"name":"shell","arguments":{"command":"ls"}},{"name":"submit","arguments":{"r":"没写完', prepared)
+  assert.equal(message.tool_calls.length, 1)
+  assert.equal(message.tool_calls[0].function.name, 'shell')
+  assert.equal(message.content, 'ok')
+})
+
+test('工具回复截断且救不回调用时，当普通回复返回而不是 502', () => {
+  const prepared = prepareRequest({
+    model: 'm',
+    messages: [{ role: 'user', content: 'x' }],
+    tools: [{ type: 'function', function: { name: 'submit', parameters: { type: 'object' } } }],
+    tool_choice: 'auto',
+  })
+  const message = decodeReply('{"content":"我要提交报告","tool_calls":[{"name":"submit","arguments":{"report":"第一段很长…综合判断抓', prepared)
+  // 半截 JSON 不要原样丢给客户端，只还内容
+  assert.equal(message.content, '我要提交报告')
+  assert.equal(message.tool_calls, undefined)
+})
+
+test('required 下截断仍报错，因为客户端要的是确定的调用', () => {
+  const prepared = prepareRequest({
+    model: 'm',
+    messages: [{ role: 'user', content: 'x' }],
+    tools: [{ type: 'function', function: { name: 'submit', parameters: { type: 'object' } } }],
+    tool_choice: 'required',
+  })
+  assert.throws(
+    () => decodeReply('{"content":"","tool_calls":[{"name":"submit","arguments":{"r":"没写完', prepared),
+    (error) => error.code === 'invalid_tool_response',
+  )
+})
+
 test('tool_choice=required 但没返回调用时报错', () => {
   const prepared = prepareRequest({
     model: 'm',

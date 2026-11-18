@@ -54,3 +54,24 @@ test('errorResponse 保留 type 与 code，登录类额外带响应头', () => {
   const expired = errorResponse(new ProviderError('要重登', 401, 'sign_in_expired', { signIn: 'expired' }))
   assert.equal(expired.headers.get('X-Magpie-Sign-In'), 'expired')
 })
+
+test('风控验证带 X-Magpie-Refused，让 magpie 不要换账号重试', async () => {
+  // magpie 默认把 403 当作「换个账号可能就好」，会连打多次。
+  // 风控不是换账号能解决的，重试只会把风控状态堆得更高，所以必须标成拒绝。
+  const error = upstreamError({ error_code: 710022004, error_msg: 'rate limited' })
+  assert.equal(error.code, 'captcha_required')
+  assert.ok(error.refused, '风控错误应带 refused 标记')
+
+  const response = errorResponse(error)
+  const header = response.headers.get('X-Magpie-Refused')
+  assert.ok(header, '响应里要有 X-Magpie-Refused 头')
+  // 头只能是 ASCII，中文说明得编码过
+  assert.match(header, /^[\x21-\x7e]+$/)
+  assert.match(decodeURIComponent(header), /doubao\.com\/chat/)
+})
+
+test('普通错误不带 refused，仍允许 magpie 换账号', () => {
+  const error = upstreamError({ error_code: 710012004 }, 429)
+  assert.equal(error.refused, undefined)
+  assert.equal(errorResponse(error).headers.get('X-Magpie-Refused'), null)
+})

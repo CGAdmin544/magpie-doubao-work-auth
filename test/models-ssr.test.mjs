@@ -86,8 +86,9 @@ test('缺失或损坏的页面返回 null', () => {
   assert.equal(parseSsrModels('<script>{"modeSelectData":"not an object"}</script>'), null)
 })
 
-test('普通账号的 SSR 只有两三档，比基线少——调用方必须取并集', () => {
-  // 这是真实遇到的问题：SSR 按账号投放，直接拿它替换会让普通账号的模型变少。
+test('飞书账号的 SSR 只有两三档，比基线少——调用方必须取并集', () => {
+  // 真实情况：飞书账号没有 office 的 model_list，SSR 里只有自动和 2.1 Lite。
+  // 直接拿它替换会让飞书账号的模型从 9 个掉到 2 个。
   const catalog = parseSsrModels(html(officeMenu([
     model('9', '自动'),
     model('seed-lite-7b', '豆包 2.1 Lite'),

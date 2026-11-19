@@ -94,3 +94,25 @@ test('非事件流响应按 JSON 错误处理', async () => {
   const response = Response.json({ code: 710022004, msg: '需要验证' })
   await assert.rejects(collect(response), (error) => error.status === 403 && error.code === 'captcha_required')
 })
+
+test('SSE 分帧认 CRLF 和单独的 CR', async () => {
+  // 规范里行结束符可以是 CRLF、LF 或单独的 CR。只按 "\n\n" 切会整段吞掉事件。
+  const rows = [
+    { event: 'STREAM_MSG_NOTIFY', data: { meta: { message_id: 'm' }, content: { content_block: [{ block_id: 'b', block_type: 10000, content: { text_block: { text: '行尾' } } }] } } },
+    { event: 'SSE_REPLY_END', data: { end_type: 3 } },
+  ]
+  for (const [label, sep] of [['CRLF', '\r\n'], ['CR', '\r']]) {
+    const body = rows.map((r) => `event: ${r.event}${sep}data: ${JSON.stringify(r.data)}${sep}${sep}`).join('')
+    const response = new Response(body, { headers: { 'content-type': 'text/event-stream' } })
+    assert.equal((await collect(response)).map((d) => d.content ?? '').join(''), '行尾', label)
+  }
+})
+
+test('完整消息放在 content 里也能取到（不只是 content_block）', async () => {
+  const blocks = [{ block_id: 'b', block_type: 10000, content: { text_block: { text: '在 content 里' } } }]
+  const rows = [
+    { event: 'FULL_MSG_NOTIFY', data: { message: { message_id: 'm', user_type: 2, content: JSON.stringify(blocks) } } },
+    { event: 'SSE_REPLY_END', data: { end_type: 3 } },
+  ]
+  assert.equal((await collect(sse(rows))).map((d) => d.content ?? '').join(''), '在 content 里')
+})

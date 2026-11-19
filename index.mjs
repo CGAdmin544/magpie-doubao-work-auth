@@ -103,8 +103,11 @@ export default async function DoubaoPodPlugin(input = {}) {
       icon,
       maxConcurrency: 1,
 
+      // 浏览器登录和从客户端读取依赖 lib/cdp.mjs、lib/desktop.mjs 里的
+      // 浏览器 / 客户端路径，那些只覆盖 Windows 和 macOS。Linux 上留着这两个选项
+      // 只会让人点进去失败，所以按平台过滤，只留粘贴 Cookie。
       methods: [
-        // ① 粘贴 Cookie —— 不依赖任何客户端，多账号最省事
+        // ① 粘贴 Cookie —— 不依赖任何客户端，多平台都能用
         {
           type: 'api',
           label: '粘贴豆包 Cookie',
@@ -264,7 +267,9 @@ export default async function DoubaoPodPlugin(input = {}) {
             }
           },
         },
-      ],
+      // Linux 上浏览器 / 客户端导入走不通（lib/cdp.mjs、lib/desktop.mjs 只覆盖
+      // Windows 和 macOS），只留粘贴 Cookie，免得点进去才失败。
+      ].filter((method) => process.platform !== 'linux' || !method.keyless),
 
       async loader(getAuth) {
         return {

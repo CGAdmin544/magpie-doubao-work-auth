@@ -66,6 +66,25 @@ test('凭据在磁盘上不是明文', async () => {
   assert.equal(raw.includes(Buffer.from('session-111')), false)
 })
 
+test('AES-GCM 封解：能还原、篡改会失败、非本格式返回 null', async () => {
+  // 这是非 Windows 平台的存储格式（Windows 走 DPAPI）。函数本身是纯计算，
+  // 在任何平台跑都验得了，所以不按平台跳过。
+  const { _internal } = await import('../lib/vault.mjs')
+  const plain = Buffer.from('{"uid":"1","cookies":[]}', 'utf8')
+  const sealed = await _internal.seal(plain)
+
+  assert.equal(sealed.includes(plain), false, '密文里不该出现原文')
+  assert.deepEqual(await _internal.unseal(sealed), plain, '解出来要和原文一致')
+
+  // 篡改密文主体，GCM 校验要失败
+  const tampered = Buffer.from(sealed)
+  tampered[tampered.length - 1] ^= 0xff
+  await assert.rejects(() => _internal.unseal(tampered))
+
+  // 不是本插件格式的（比如早期版本落的明文）返回 null，交给调用方按明文处理
+  assert.equal(await _internal.unseal(plain), null)
+})
+
 test('清理', async () => {
   await rm(dir, { recursive: true, force: true })
 })

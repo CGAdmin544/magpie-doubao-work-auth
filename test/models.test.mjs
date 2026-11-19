@@ -136,6 +136,27 @@ test('倍率从 tag_list 解析：纯倍率与限时优惠', () => {
   assert.equal(readRate([{ text: '0.80x', type: 2 }]).rate, 0.8)
 })
 
+test('倍率文案变体都能读出来', () => {
+  // 倍率在服务端只是标签文案，没有独立字段。文案格式变了不能把倍率丢掉。
+  const cases = [
+    ['新上线 0.47x', 0.47],
+    ['0.80x 起', 0.8],
+    ['0.47X', 0.47],
+    ['0.47×', 0.47],
+    ['0.47 倍', 0.47],
+    ['０.４７ｘ', 0.47],
+  ]
+  for (const [text, want] of cases) {
+    assert.equal(readRate([{ text, type: 6 }]).rate, want, text)
+  }
+})
+
+test('读不出倍率时返回 undefined，不编一个数出来', () => {
+  assert.equal(readRate([{ text: '升级', type: 6 }]).rate, undefined)
+  assert.equal(readRate([]).rate, undefined)
+  assert.equal(readRate(undefined).rate, undefined)
+})
+
 test('免费标签识别为不计费，而不是 0 倍率', () => {
   const rate = readRate([{ text: '小额免费', type: 6 }])
   assert.equal(rate.free, true)

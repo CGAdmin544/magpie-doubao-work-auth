@@ -199,6 +199,54 @@ test('额度接口什么都没给时不编造数值', () => {
   assert.equal(quota.plan, '豆包工作')
 })
 
+test('30 天赠送订阅要在套餐名上标出来', () => {
+  // 以前完全不读 is_membership_gift，有赠送的用户看着像没订阅。
+  const overview = {
+    is_membership_gift: true,
+    current_subscription: { display: { short_name: '免费体验' }, end_time: 1797219471986 },
+  }
+  assert.equal(normalizeQuota(overview, {}, 'u').plan, '免费体验（赠送）')
+  const plain = { is_membership_gift: false, current_subscription: { display: { short_name: '免费体验' } } }
+  assert.equal(normalizeQuota(plain, {}, 'u').plan, '免费体验')
+})
+
+test('有总量时显示「已用 / 上限」，不被 used_percent 抢走', () => {
+  // 赠送套餐恒返回 used_percent: 0 且同时给 total/used，旧代码只看百分比，
+  // 界面上只剩「近 7 天 0」，看不到 500 的上限。
+  const summary = {
+    window_limit_section: {
+      window_limit_groups: [{
+        feature_group_name: '个人订阅',
+        window_limits: [{ total_amount: '500', used_amount: '0', used_percent: 0, end_time: 0 }],
+      }],
+    },
+  }
+  const [w] = normalizeQuota({}, summary, 'u').windows
+  assert.equal(w.amount, 0)
+  assert.equal(w.limit, 500)
+  assert.match(w.display, /0 \/ 500/)
+})
+
+test('活动赠送卡做成额度窗口', () => {
+  // 免费体验账号的额度常常只存在于 marketing/card/list 里，不读就显示「暂无额度」。
+  const cards = {
+    data: {
+      cards: [{
+        card_key: 'quota_reset_card',
+        source_display_text: '活动赠送',
+        expire_time: new Date(Date.now() + 86400_000).toISOString(),
+        track_params: { card_balance: 1, valid_days: 30 },
+        usable_on_current_device: true,
+      }],
+    },
+  }
+  const [w] = normalizeQuota({}, {}, 'u', null, cards).windows
+  assert.match(w.name, /活动赠送/)
+  assert.equal(w.amount, 1)
+  assert.match(w.display, /剩 1 次/)
+  assert.ok(w.runsOutAt)
+})
+
 test('签到状态做成额度窗口：未签时提示去客户端', () => {
   const quota = normalizeQuota({}, {}, 'u', { found: true, claimed: false, points: 200, streak: 2 })
   const signin = quota.windows.find((w) => w.name.startsWith('每日签到'))

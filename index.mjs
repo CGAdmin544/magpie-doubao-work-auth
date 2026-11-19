@@ -310,6 +310,12 @@ export default async function DoubaoPodPlugin(input = {}) {
           }
           // overview 只提供套餐名，拿不到就用 summary 里的订阅信息兜底
           const overview = await settle('/alice/commerce/sale/subscription/overview/', { product_line: 'membership' })
+          // 活动赠送卡不在 overview 里，得单独问一次（官方额度页自己也调这个只读接口）。
+          // 免费体验账号唯一有额度的地方往往就是这里，不读的话界面只能显示「暂无额度」。
+          const cards = await settle('/alice/commerce/marketing/card/list/', {
+            status_in: [1, 2, 3, 4],
+            with_limit_status: true,
+          })
           // 签到状态一并带上：额度卡片上直接能看到今天签没签。
           // 缓存 10 分钟——签到的变化周期是按天的，没必要每次刷额度都去打一次上游。
           let checkin = session.checkinCache
@@ -320,7 +326,7 @@ export default async function DoubaoPodPlugin(input = {}) {
               session.checkinAt = Date.now()
             } catch { /* 签到状态取不到不影响额度 */ }
           }
-          return normalizeQuota(overview ?? {}, summary, session.name, checkin)
+          return normalizeQuota(overview ?? {}, summary, session.name, checkin, cards)
         } catch (error) {
           if (!(error instanceof ProviderError)) throw error
           return { error: error.message, windows: [], ...(error.signIn ? { signIn: error.signIn } : {}) }

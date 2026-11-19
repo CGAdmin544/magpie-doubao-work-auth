@@ -13,6 +13,7 @@
 
 > 完整记录见 [CHANGELOG.md](CHANGELOG.md)，最新的在最上面。
 
+- **模型菜单按账号走**（`0.4.0`）。付费档账号能出到 12 个模型（多出 Qwen 4 Max、Qwen 3.8 Max、Qwen 3.8 Flash），普通账号仍是 9 个——菜单来自网页 SSR，和基线取并集，只增不减。
 - **工具回复容错**（`0.3.3`/`0.3.4`）。模型中途停下、工具 JSON 没闭合时，先救回写完的调用，救不回来就把正文当普通回复返回，不再整轮报 502；JSON 包在 Markdown 围栏里或前后带解释也能解析。
 - **风控不再反复重试**（`0.3.2`）。被拦后带 `X-Magpie-Refused` 让 magpie 只失败一次，并进入 5 分钟冷却，不再连打 5 次把风控堆高。
 - **支持 Codex 的 Responses 协议**（`029a866`）。之前 Codex 调用会失败，报 `server_error` 或 `delegated input protocol violation`——插件只认 chat completions 的 `messages`，而 Codex 发的是 `input`。同时补上了 `usage` 字段，客户端不再显示 0 token。
@@ -123,7 +124,9 @@ magpie quota
 
 ## 一些实现细节
 
-**模型菜单没有前端接口。** 那份数据由网页 SSR 的 loader 在服务端取好内联进页面。前端调 `/alice/slot/action_bar_v3/brief_list` 只返回 `entry_list`（底部工具条：PPT 生成、录音这些 `coco_instruction`），`/alice/bot/action_bar_v3/brief_list` 直接 404。所以插件内置一份实测基线，登录后仍会尝试在线刷新，刷不到就用基线。
+**模型菜单没有前端接口。** 那份数据由网页 SSR 的 loader 在服务端取好内联进页面。前端调 `/alice/slot/action_bar_v3/brief_list` 只返回 `entry_list`（底部工具条：PPT 生成、录音这些 `coco_instruction`），`/alice/bot/action_bar_v3/brief_list` 直接 404。`get_item_conf`、`input/list`、`launch.model_list` 都试过，都不是模型菜单。
+
+所以现在的做法是拿 `/chat` 页面的 HTML 解析 `modeSelectData`。**难点在于这份数据按账号投放**：付费档账号的菜单里有 Qwen 4 Max / Qwen 3.8 Max / Qwen 3.8 Flash，普通账号只有自动和 2.1 Lite 两档。直接用它替换会让普通账号的模型变少，所以插件把它和内置基线取并集，只增不减——付费档账号出 12 个，普通账号仍是 9 个。
 
 **`aid` 必须是 497858。** 用错成 1044603 会让所有请求落到另一条产品线：拿不到工作版模型菜单，`launch` 里的 `ug_campaign_info.campaign_group_code` 也是空字符串。
 

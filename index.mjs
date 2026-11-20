@@ -16,7 +16,7 @@
  * 导出只有这一个函数——入口模块导出的每个函数都会被当成插件调用。
  */
 import { buildProvider, buildModels, magpieModels } from './lib/models.mjs'
-import { DesktopSession, defaultUserDataDir, FALLBACK_BOT } from './lib/session.mjs'
+import { DesktopSession, FALLBACK_BOT } from './lib/session.mjs'
 import { importDesktop } from './lib/desktop.mjs'
 import { cookiesFromHeader, clientInfoFromCookies } from './lib/cookie-import.mjs'
 import { cookiesFromDebugPort, launchDebugBrowser } from './lib/cdp.mjs'
@@ -64,10 +64,8 @@ export default async function DoubaoPodPlugin(input = {}) {
     const binding = bindingOf(auth)
     let session = sessions.get(binding.uid)
     if (!session) {
-      session = new DesktopSession({
-        ...binding,
-        userDataDir: binding.userDataDir || defaultUserDataDir(),
-      })
+      // 没记 userDataDir 时不塞默认值，让 load() 自己去候选路径里找
+      session = new DesktopSession({ ...binding })
       sessions.set(binding.uid, session)
     }
     return session
@@ -230,8 +228,8 @@ export default async function DoubaoPodPlugin(input = {}) {
           prompts: [{
             type: 'text',
             key: 'userDataDir',
-            message: '豆包工作数据目录（留空用默认位置）',
-            placeholder: defaultUserDataDir(),
+            message: '豆包工作数据目录（留空会自动查找）',
+            placeholder: '留空即可，插件会自动找',
             required: false,
           }, {
             type: 'text',
@@ -245,9 +243,10 @@ export default async function DoubaoPodPlugin(input = {}) {
           }],
 
           async authorize(inputs, { signal } = {}) {
-            const userDataDir = (inputs?.userDataDir || '').trim() || defaultUserDataDir()
+            // 留空就别硬塞默认值，交给 load() 去逐个候选路径试
+            const userDataDir = (inputs?.userDataDir || '').trim()
             const profile = (inputs?.profile || '').trim() || 'auto'
-            const session = new DesktopSession({ profile, userDataDir })
+            const session = new DesktopSession({ profile, ...(userDataDir ? { userDataDir } : {}) })
             try {
               await session.ready(signal)
             } catch (cause) {

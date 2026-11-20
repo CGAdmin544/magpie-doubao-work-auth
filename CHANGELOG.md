@@ -7,6 +7,7 @@
 - **支持 Linux。** `os` 加上 `linux`，此前 Linux 装不上。Linux 上用「粘贴 Cookie」登录即可，对话、流式、工具调用、额度、签到都和 Windows 一致；浏览器登录和「从客户端读取」依赖 Windows / macOS 的安装路径，Linux 上走不通，登录菜单里直接不显示这两项。
 - **非 Windows 的凭据改成真加密。** 以前 Linux / macOS 上保管库是明文落盘、只靠 `chmod 600`，README 却写着「不落明文」，说一套做一套。现在改成本地 key + AES-256-GCM，key 存在同目录的 `vault.key`（600）。旧版落的明文记录仍能读，下次保存自动转成密文。
 - **模型菜单按账号类型走，不再固定 9 个。** 以前 `brief_list` 拿不到完整菜单就退回内置基线，所以订阅账号能用的 Qwen 那几档一直看不到。现在还会读 `/chat` 的 SSR 补齐，和基线取并集——订阅账号能出到 12 个（多出 Qwen 4 Max、Qwen 3.8 Max、Qwen 3.8 Flash），飞书账号仍是原本的 9 个（飞书没有 office 的 `model_list`，SSR 里只有 2 档）。
+  「解析 SSR 补菜单」这个方向来自 [@GuiXunTaiYi](https://github.com/GuiXunTaiYi) 的 [PR #6](https://github.com/miaocell/magpie-doubao-work-auth/pull/6)，括号配对和多处 `modeSelectData` 的处理也参考了那份实现。解析之后的合并策略改成了并集——直接把 SSR 结果当模型表会让只有两三档的账号变少。
 - **倍率解析放宽。** 倍率在服务端只是标签文案（`新上线 0.47x`），没有独立字段。原来只认结尾的 `0.47x`，现在中间的、带「倍」字的、全角数字、`×` 号都能读出来；读不出来时留空，不编一个数。
 - **SSE 分帧认 CRLF 和单独的 CR。** 之前只按 `\n\n` 切事件、按 `\n` 切行，遇到 CRLF 行尾的上游会整段吞掉事件。规范允许 CRLF / LF / CR 三种，现在都认。
 - **完整消息放在 `content` 里也能取到。** 上游有两种给法：直挂 `content_block`，或塞进 `content`（有时是 JSON 编码的块数组，有时是纯文本）。之前只认前者，整条消息会被丢掉。

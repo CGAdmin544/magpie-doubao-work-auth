@@ -253,7 +253,7 @@ test('签到状态做成额度窗口：未签时提示去客户端', () => {
   assert.ok(signin, '额度卡片应含签到窗口')
   assert.match(signin.name, /今日未签/)
   assert.match(signin.name, /可领 200 额度/)
-  assert.equal(signin.usedNote, '需在豆包电脑版领取')
+  assert.equal(signin.usedNote, '需去豆包电脑版领')
   assert.equal(signin.streak, 2)
   assert.equal(signin.credit, 200)
 })
